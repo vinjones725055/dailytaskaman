@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html>
+<!-- command to deploy app:- firebase deploy -->
+
+<head>
+    <title>Daily Task</title>
+    <link rel="icon" type="image/png" href="dt.png" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/5.0.0-alpha1/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-r4NyP46KrjDleawBgD5tp8Y7UzmLA05oM1iAEQ17CSuDqnUK2+k9luXQOfXJCJ4I" crossorigin="anonymous">
+
+    <style>
+        body {
+            background-color: #F6F4F2;
+        }
+
+        .modal-title {
+            word-break: break-all;
+        }
+
+        .group {
+            min-height: 100vh;
+        }
+
+        .dropdown-item:hover {
+            font-weight: bold;
+        }
+
+        input:hover {
+            box-shadow: 0 0 5px 5px #ffffff;
+        }
+
+        li {
+            background-color: #343a40;
+            margin-bottom: 2px;
+        }
+
+        li:hover {
+            margin-top: 5px;
+            margin-bottom: 5px;
+            box-shadow: 0 0 5px 5px #ffffff;
+            font-style: italic;
+            background-color: #ffffff;
+        }
+
+        li:hover .url {
+            cursor: pointer;
+            color: rgb(0, 0, 255);
+        }
+
+        li:hover .urlDesc {
+            display: block;
+        }
+
+        .date {
+            width: 25px;
+        }
+
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+        }
+
+        .leftDiv {
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        li:hover .leftDiv {
+            height: auto;
+            white-space: normal;
+        }
+
+        .urlDesc {
+            display: none;
+            color: rgb(0, 0, 0);
+        }
+
+        .normal {
+            color: #00ffff;
+        }
+
+        .white {
+            color: white;
+        }
+
+        .warning {
+            color: yellow;
+        }
+
+        .danger {
+            color: red;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="modal fade" id="exampleModalLong" tabindex="-1" role="dialog" aria-labelledby="exampleModalLongTitle"
+        aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h6 class="modal-title" id="modal-title">Modal title</h5>
+                        <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                </div>
+                <div class="modal-body">
+                    <div class="checkBoxContainer">
+                        <!-- dynamically adding checkboxes -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <!-- dynamically adding add users button -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container-fluid">
+        <div class="row mt-3">
+            <div class="col-3 bg-dark rounded group text-center">
+                <div class="dropdown">
+                    <button type="button" id="email" class="btn btn-primary dropdown-toggle my-2"
+                        data-bs-toggle="dropdown">
+                        Select Your Email
+                    </button>
+                    <ul class="dropdown-menu">
+                        <!-- dynamically adding email -->
+                    </ul>
+                </div>
+                <h6 class="text-white" id="gwei"></h6>
+                <input type="text" id="groupInput" class="form-control my-2" placeholder="Add Group">
+                <hr class="text-white">
+                <ul id="sidebar" class="list-unstyled">
+                </ul>
+            </div>
+            <div class="col-9 rounded bg-secondary">
+                <input type="text" id="urlInput" class="form-control my-2"
+                    placeholder="Paste Url and then press Enter key">
+                <hr>
+                <ul id="urlList" class="list-unstyled"></ul>
+            </div>
+        </div>
+    </div>
+
+
+
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, child, get, push, set, update, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        const firebaseConfig = {
+            apiKey: "AIzaSyDcW2FKMRR-ydLm42KU4m3f-kKffb5BaHM",
+            authDomain: "dailytaskaman.firebaseapp.com",
+            databaseURL: "https://dailytaskaman-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "dailytaskaman",
+            storageBucket: "dailytaskaman.firebasestorage.app",
+            messagingSenderId: "513849894430",
+            appId: "1:513849894430:web:5e9151e85f00ecf879f00f",
+            measurementId: "G-625X1DXZP4"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        // Reference to the tasks collection
+
+        let selectedEmail = localStorage.getItem("email") || "Select Your Email";
+        let selectedGroup = localStorage.getItem("group") || null;
+        let updatedUsersList = [];
+        let listOfEmails = [];
+        let listOfKeys = [];
+        let listOfUrls = [];
+        let listOfUsersUrls = [];
+
+
+        //email operations (add/edit/discard)
+        let email = document.getElementById("email");
+        email.innerHTML = selectedEmail;
+
+        //sidebar
+        let groupInput = document.getElementById("groupInput");
+        groupInput.addEventListener("keyup", async function (event) {
+            if (groupInput.value == null || groupInput.value.trim() == "") {
+                return
+            }
+            if (event.keyCode === 13) {
+                event.preventDefault();
+                await set(ref(db, `groups/${groupInput.value.toUpperCase()}`), 3153600000000) //1 jan 2100
+                selectedGroup = groupInput.value.toUpperCase();
+                localStorage.setItem("group", groupInput.value.toUpperCase());
+                groupInput.value = "";
+                loadUrl();
+            }
+        });
+        async function loadGroup() {
+            const querySnapshot = await get(ref(db, "groups"));
+            let sidebar = document.getElementById("sidebar");
+            sidebar.innerHTML = "";
+            let groupDeleted = true;
+            querySnapshot.forEach((item) => {
+                let li = document.createElement("li");
+                li.className = "d-flex align-items-center mb-2 bg-dark white rounded"
+
+                let groupName = document.createElement("div");
+                groupName.className = "flex-grow-1 text-left"
+                groupName.textContent = item.key;
+
+                let button = document.createElement("button");
+                button.className = "btn btn-danger"
+                button.innerHTML = '<i class="material-icons">delete</i>'
+                if (selectedGroup == item.key) {
+                    groupDeleted = false;
+                    li.className = "d-flex justify-content-between align-items-center bg-secondary mb-2 font-weight-bold rounded";
+                }
+                button.addEventListener('click', async () => {
+                    let confirmation = prompt("Warning!! All the Urls in this group will be deleted.\n Please write groupname to delete")
+                    if (confirmation.toUpperCase() == item.key) {
+                        await remove(ref(db, `groups/${item.key}`))
+                        await remove(ref(db, `tasks/${item.key}`))
+                        selectedGroup = null;
+                        localStorage.removeItem("group")
+                        loadUrl();
+                    } else {
+                        alert("Groupname did not match")
+                    }
+                })
+                let days = daysLeft(item.val())
+                if (days == -1) {
+                    li.classList.add("danger");
+                }
+                if (days == 0) {
+                    li.classList.add("white");
+                }
+                if (days == 1) {
+                    li.classList.add("warning")
+                }
+                if (item.val() < 0) {
+                    li.classList.add("text-decoration-line-through")
+                }
+                li.appendChild(groupName);
+                li.appendChild(button);
+                sidebar.appendChild(li);
+
+                groupName.addEventListener('click', async (event) => {
+                    if (event.ctrlKey) {
+                        await set(ref(db, `groups/${item.key}`), -item.val())
+                        loadGroup();
+                        return;
+                    }
+                    selectedGroup = item.key;
+                    localStorage.setItem("group", item.key);
+                    loadGroup()
+                    loadUrl();
+                })
+            });
+            if (groupDeleted == true) {
+                selectedGroup = null;
+                localStorage.removeItem("group")
+            }
+        }
+
+        loadEmail();
+        loadGroup();
+        loadUrl();
+        getGas();
+        setInterval(getGas, 5000);
+
+        //input urls
+        let urlInput = document.getElementById("urlInput");
+        urlInput.addEventListener("keyup", async function (event) {
+            if (urlInput.value == null || urlInput.value.trim() == "") {
+                return;
+            }
+            if (selectedGroup == null || selectedGroup.trim() == "") {
+                alert("Please Select Group First");
+                return;
+            }
+            if (event.keyCode === 13) {
+                event.preventDefault();
+                let urlVal = urlInput.value.trim();
+                let description = "";
+
+                let spaceIndex = urlVal.indexOf(" ");
+                if (spaceIndex > 0) {
+                    description = urlVal.substring(spaceIndex + 1);
+                    urlVal = urlVal.substring(0, spaceIndex);
+                }
+                if (urlVal.indexOf('{') >= 0) {
+                    urlVal = saveVariable(urlVal);
+                }
+                if (selectedGroup == "EMAIL" && isValidEmail(urlVal) == false) {
+                    alert("Email is not valid")
+                    return;
+                }
+                if (checkIfExists(urlVal) == false) {
+                    await push(ref(db, `tasks/${selectedGroup}`), {
+                        "completed": false,
+                        "description": description,
+                        "endDate": "",
+                        "url": urlVal
+                    })
+                } else {
+                    alert("Url already exists");
+                }
+                urlInput.value = "";
+                loadUrl();
+            }
+        });
+
+
+        async function loadEmail() {
+            let emailDropDown = document.querySelector(".dropdown-menu");
+            emailDropDown.innerHTML = "";
+            const querySnapshot = await get(ref(db, "tasks/EMAIL"));
+            querySnapshot.forEach((item) => {
+                listOfEmails.push(item.val().url)
+                let li = document.createElement("li");
+                li.className = "dropdown-item";
+                li.innerText = item.val().url;
+                li.addEventListener("click", () => {
+                    let result = confirm(`Are you sure you want to change email`);
+                    if (result) {
+                        selectedEmail = item.val().url;
+                        localStorage.setItem("email", selectedEmail);
+                        email.innerHTML = selectedEmail;
+                        loadUrl();
+                    }
+                })
+                emailDropDown.appendChild(li);
+            })
+        }
+
+        async function loadUrl() {
+            let groupEndDate = 3153600000000 // 1 jan 2100
+            listOfKeys = []
+            listOfUrls = []
+            listOfUsersUrls = []
+            const querySnapshot = await get(ref(db, `tasks/${selectedGroup}`));
+            urlList.innerHTML = "";
+
+            if (querySnapshot.exists()) {
+                let ulrList = document.getElementById("urlList");
+                let li = document.createElement("div");
+                li.className = "d-flex justify-content-center";
+                let button = document.createElement("button");
+                button.className = "btn btn-sm btn-success mb-1";
+                button.innerText = 'Open All Urls';
+                button.addEventListener('click', () => openUrls())
+                li.appendChild(button);
+                urlList.appendChild(li);
+            }
+            querySnapshot.forEach((item) => {
+                listOfKeys.push(item.key);
+                listOfUrls.push(item.val());
+
+                if (item.val().endDate != false && item.val().endDate < groupEndDate) {
+                    groupEndDate = item.val().endDate;
+                }
+
+                let li = document.createElement("li");
+                li.className = "d-flex justify-content-between align-items-center"
+                let leftDiv = document.createElement("div");
+                leftDiv.className = "d-flex leftDiv"
+
+                let checkboxContainer = document.createElement('div');
+                let urlAndDescContainer = document.createElement('div');
+                urlAndDescContainer.className = "d-flex flex-column"
+                let checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'form-check-input mx-2'
+                checkbox.addEventListener('change', async () => {
+                    await set(ref(db, `tasks/${selectedGroup}/${item.key}`), { ...item.val(), "completed": !item.val().completed })
+                    loadUrl();
+                })
+
+                let url = document.createElement("div");
+                url.textContent = replaceVariable(item.val().url);
+                url.className = "text-decoration-none url normal"
+                url.addEventListener('click', () => openUrls(item.val().url))
+                if (item.val().completed) {
+                    checkbox.checked = true;
+                    url.classList.add("text-decoration-line-through")
+                } else if (item.val().users?.indexOf(selectedEmail) == -1) {
+                    url.classList.add("text-decoration-line-through")
+                } else {
+                    listOfUsersUrls.push(item.val())
+                }
+                let urlDesc = document.createElement('div');
+                urlDesc.className = "urlDesc"
+                urlDesc.innerText = item.val().description ? item.val().description : '';
+
+
+                let rightDiv = document.createElement("div");
+                rightDiv.className = "d-flex"
+
+                let dateValue = document.createElement("div");
+                dateValue.className = "bg-dark text-white";
+                dateValue.innerText = millisToDDMMYY(item.val().endDate);
+                let dateInput = document.createElement('input');
+                dateInput.type = 'date';
+                dateInput.classList.add("date")
+                dateInput.classList.add("bg-dark")
+                dateInput.classList.add("text-white")
+                dateInput.addEventListener('input', async (event) => {
+                    let selectedDate = '';
+                    if (event.target.value != '') {
+                        selectedDate = new Date(dateInput.value).getTime();
+                    }
+                    await set(ref(db, `tasks/${selectedGroup}/${item.key}`), { ...item.val(), "endDate": selectedDate })
+                    loadUrl();
+                })
+
+                let days = daysLeft(item.val().endDate)
+                if (days == -1) {
+                    url.classList.add("danger");
+                }
+                if (days == 0) {
+                    url.classList.add("normal");
+                }
+                if (days == 1) {
+                    url.classList.add("warning")
+                }
+                let addUser = document.createElement("button");
+                addUser.setAttribute('data-bs-toggle', 'modal');
+                addUser.setAttribute('data-bs-target', '#exampleModalLong');
+                addUser.className = "btn btn-sm btn-dark p-1"
+                addUser.innerHTML = '<i class="material-icons">group_add</i>'
+                let modalFooter = document.querySelector(".modal-footer");
+                addUser.addEventListener('click', () => {
+                    if (listOfEmails.length == 0) {
+                        alert("1. Create Group of name 'EMAIL'.\n2. Add your emails to that group. \n3. You will be able to select emails only then.");
+                        return;
+                    }
+                    modalFooter.innerHTML = ""
+                    updatedUsersList = []
+                    document.querySelector(".modal-title").innerText = item.val().url;
+                    let checkboxContainer = document.querySelector(".checkBoxContainer")
+                    checkboxContainer.innerHTML = ""
+                    listOfEmails.forEach((email) => {
+                        let div = document.createElement('div');
+                        div.className = "form-check";
+                        // Create a new checkbox
+                        let checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.value = email;
+                        checkbox.id = email;
+                        checkbox.className = 'form-check-input';
+                        checkbox.addEventListener('change', () => {
+                            let index = updatedUsersList.indexOf(email)
+                            if (checkbox.checked) {
+                                if (index == -1) {
+                                    updatedUsersList.push(email);
+                                }
+                            } else {
+                                if (index > -1) {
+                                    updatedUsersList.splice(index, 1);
+                                }
+                            }
+                        })
+                        if (item.val().users == undefined || item.val().users == null) {
+                            checkbox.checked = true;
+                        } else {
+                            if (item.val().users.indexOf(email) > -1) {
+                                checkbox.checked = true;
+                            }
+                        }
+                        if (checkbox.checked) {
+                            updatedUsersList.push(email);
+                        }
+
+                        // Create a new label
+                        let label = document.createElement('label');
+                        label.htmlFor = checkbox.id;
+                        label.className = 'form-check-label';
+                        label.appendChild(document.createTextNode(email));
+
+                        // Append the checkbox and label to the div
+                        div.appendChild(checkbox);
+                        div.appendChild(label);
+                        checkboxContainer.appendChild(div);
+                    })
+
+                    let updateUsers = document.createElement("button");
+                    updateUsers.className = "btn btn-success"
+                    updateUsers.innerText = 'Update Users'
+                    updateUsers.setAttribute('data-bs-dismiss', 'modal');
+                    modalFooter.appendChild(updateUsers)
+                    updateUsers.addEventListener('click', async () => {
+                        await set(ref(db, `tasks/${selectedGroup}/${item.key}`), { ...item.val(), "users": updatedUsersList })
+                        loadUrl();
+                    })
+                })
+                let moveUpButton = document.createElement("button");
+                moveUpButton.className = "btn btn-sm btn-dark p-1"
+                moveUpButton.innerHTML = '<i class="material-icons">arrow_upward</i>'
+                moveUpButton.addEventListener('click', async () => {
+                    for (let i = 0; i < listOfKeys.length; i++) {
+                        if (item.key == listOfKeys[i]) {
+                            if (i == 0) {
+                                return;
+                            }
+                            await set(ref(db, `tasks/${selectedGroup}/${listOfKeys[i - 1]}`), listOfUrls[i]);
+                            await set(ref(db, `tasks/${selectedGroup}/${listOfKeys[i]}`), listOfUrls[i - 1]);
+                            loadUrl();
+                        }
+                    }
+                })
+                let moveDownButton = document.createElement("button");
+                moveDownButton.className = "btn btn-sm btn-dark p-1"
+                moveDownButton.innerHTML = '<i class="material-icons">arrow_downward</i>'
+                moveDownButton.addEventListener('click', async () => {
+                    for (let i = 0; i < listOfKeys.length; i++) {
+                        if (item.key == listOfKeys[i]) {
+                            if (i == listOfKeys.length - 1) {
+                                return;
+                            }
+                            await set(ref(db, `tasks/${selectedGroup}/${listOfKeys[i + 1]}`), listOfUrls[i]);
+                            await set(ref(db, `tasks/${selectedGroup}/${listOfKeys[i]}`), listOfUrls[i + 1]);
+                            loadUrl();
+                        }
+                    }
+                })
+                let deleteButton = document.createElement("button");
+                deleteButton.className = "btn btn-sm btn-dark text-danger p-1"
+                deleteButton.innerHTML = '<i class="material-icons">delete</i>'
+                deleteButton.addEventListener('click', async () => {
+                    let result = confirm(`Are you sure you want to delete?\n${item.val().url}`);
+                    if (result) {
+                        await remove(ref(db, `tasks/${selectedGroup}/${item.key}`))
+                        loadUrl();
+                    }
+                })
+                checkboxContainer.appendChild(checkbox);
+                urlAndDescContainer.appendChild(url);
+                urlAndDescContainer.appendChild(urlDesc);
+
+                leftDiv.appendChild(checkboxContainer);
+                leftDiv.appendChild(urlAndDescContainer);
+
+                rightDiv.appendChild(dateValue);
+                rightDiv.appendChild(dateInput);
+                rightDiv.appendChild(addUser);
+                rightDiv.appendChild(moveUpButton);
+                rightDiv.appendChild(moveDownButton);
+                rightDiv.appendChild(deleteButton);
+                li.appendChild(leftDiv);
+                li.appendChild(rightDiv);
+                urlList.appendChild(li);
+            });
+            if (selectedGroup != null) {
+                await set(ref(db, `groups/${selectedGroup}`), groupEndDate);
+            }
+            loadGroup();
+        }
+
+        function saveVariable(url) {
+            let left = url.indexOf('{');
+            let mid = url.indexOf(':', left);
+            let right = url.indexOf('}', mid);
+
+            if (left < 0 || mid < 0 || right < 0) {
+                return url;
+            }
+
+            let key = url.substring(left + 1, mid);
+            let value = url.substring(mid + 1, right);
+            localStorage.setItem(key, value);
+            url = url.replace(":" + value, "");
+            return url;
+        }
+
+        function replaceVariable(url) {//example "https://github.com/{key:value}/Gitcoin/edit/main/jan.py"
+            if (url.indexOf("{") >= 0) {
+                let key = url.substring(url.indexOf("{") + 1, url.indexOf("}"));
+                let value = localStorage.getItem(key);
+
+                let regex = new RegExp("\\{" + key + "\\}", "g");
+                url = url.replace(regex, value);
+            }
+            return url;
+        }
+
+        function openUrls() {
+            if (arguments.length === 0) {
+                for (let i = 0; i < listOfUsersUrls.length; i++) {
+                    if (listOfUsersUrls[i].url.startsWith("http")) {
+                        window.open(replaceVariable(listOfUsersUrls[i].url), '_blank');
+                    }
+                }
+                return;
+            }
+            if (arguments.length === 1) {
+                if (arguments[0].startsWith("http")) {
+                    window.open(replaceVariable(arguments[0]), '_blank');
+                }
+            }
+        }
+
+        function getGas() {
+            fetch('https://api.etherscan.io/api?module=gastracker&action=gasoracle&apikey=2M1WXTYFPYCYJ4HMB4BJ61EIUI8JTZ8C9H')
+                .then(response => response.json())
+                .then(data => {
+                    document.title = data.result.ProposeGasPrice + " Gwei"
+                    document.getElementById("gwei").innerText = "Average Gwei = " + data.result.ProposeGasPrice;
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function millisToDDMMYY(millis) {
+            if (millis == undefined || millis == '') {
+                return ""
+            }
+            var date = new Date(millis);
+            var day = ('0' + date.getDate()).slice(-2);
+            var month = ('0' + (date.getMonth() + 1)).slice(-2);
+            var year = date.getFullYear().toString().substr(-2);
+            return day + '/' + month + '/' + year;
+        }
+
+        function daysLeft(endDate) {
+            let today = new Date().getTime();
+
+            if (endDate == '' || endDate == undefined) {
+                return 0;
+            }
+            if (endDate < 0) {
+                endDate = -endDate;
+            }
+            if (endDate < today) {
+                return -1;
+            }
+            if (endDate - today < 604800000) {
+                return 1;
+            }
+            return 0;
+        }
+
+        function checkIfExists(url) {
+            for (let i = 0; i < listOfUrls.length; i++) {
+                if (listOfUrls[i].url == url) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function isValidEmail(email) {
+            let regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+            return regex.test(email);
+        }
+
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
+        crossorigin="anonymous"></script>
+</body>
+
+</html>
